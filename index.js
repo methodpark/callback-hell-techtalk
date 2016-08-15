@@ -63,26 +63,21 @@ let socialAsync = {
     plus: makeSocialAsync('plus')
 };
 
-let fileContent;
-let uploadUrl;
-readFileAsync('./support/web.js')
-    .then(content => {
-        fileContent = content;
-        return loginAsync('https://login.example.com/');
-    })
-    .then(result => {
-        return postFileAsync('https://submit.example.com/', fileContent);
-    })
-    .then(() => {
-        return socialAsync.tweet(uploadUrl);
-    })
-    .then(url => {
-        uploadUrl = url;
-        return socialAsync.facebook(uploadUrl);
-    })
-    .then(() => {
-        return socialAsync.plus(uploadUrl);
-    })
-    .catch(error => {
-        console.warn(error);
-    });
+
+async function publishFile() {
+    try {
+        let fileContent = await readFileAsync('./support/web.js');
+        await loginAsync('https://login.example.com/');
+        let url = await postFileAsync('https://submit.example.com/', fileContent);
+
+        await Promise.all([
+            socialAsync.tweet(url),
+            socialAsync.facebook(url),
+            socialAsync.plus(url)
+        ]);
+    } catch (exception) {
+        console.warn(exception);
+    }
+}
+
+publishFile();
