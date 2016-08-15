@@ -1,56 +1,69 @@
 const web = require('./support/web'),
-      social = require('./support/social'),
-      fs = require('fs');
+    social = require('./support/social'),
+    fs = require('fs');
 
-function publishFile(path, callback) {
-    fs.readFile(path, (error, fileContent) => {
+
+function postHandler(callback) {
+    return (response) => {
+        let done = {
+                twitter: false,
+                facebook: false,
+                plus: false
+            },
+            errors = [],
+            handleDone = (what, error, response) => {
+                done[what] = response || true;
+
+                if (error) {
+                    errors.push(`${what}: ${error}`);
+                }
+
+                if (done.twitter && done.facebook && done.plus) {
+                    if (errors.length === 0) {
+                        errors = undefined;
+                    }
+                    callback(errors);
+                }
+            };
+
+        social.tweet('Just published this thing: ' + response.url, (error, response) => {
+            handleDone('twitter', error, response);
+        });
+
+        social.facebook('Just published this thing: ' + response.url, (error, response) => {
+            handleDone('facebook', error, response);
+        });
+
+        social.plus('Just published this thing: ' + response.url, (error, response) => {
+            handleDone('plus', error, response);
+        });
+    };
+}
+
+function loginHandler(fileContent, callback) {
+    return (response) => {
+        if (response.status != 200) {
+            callback('Could not login: ' + response.status);
+            return;
+        }
+
+        web.post('https://submit.example.com/', fileContent, postHandler(callback));
+    };
+}
+
+function uploadFileHandler(callback) {
+    return (error, fileContent) => {
         if (error) {
             callback(error);
             return;
         }
 
-        web.get('https://login.example.com/', (response) => {
-            if (response.status != 200) {
-                callback('Could not login: ' + response.status);
-                return;
-            }
+        web.get('https://login.example.com/', loginHandler(fileContent, callback));
+    };
+}
 
-            web.post('https://submit.example.com/', fileContent, (response) => {
-                let done = {
-                        twitter: false,
-                        facebook: false,
-                        plus: false
-                    },
-                    errors = [],
-                    handleDone = (what, error, response) => {
-                        done[what] = response || true;
-
-                        if (error) {
-                            errors.push(`${what}: ${error}`);
-                        }
-
-                        if (done.twitter && done.facebook && done.plus) {
-                            if (errors.length === 0) {
-                                errors = undefined;
-                            }
-                            callback(errors);
-                        }
-                    };
-
-                social.tweet('Just published this thing: ' + response.url, (error, response) => {
-                    handleDone('twitter', error, response);
-                });
-
-                social.facebook('Just published this thing: ' + response.url, (error, response) => {
-                    handleDone('facebook', error, response);
-                });
-
-                social.plus('Just published this thing: ' + response.url, (error, response) => {
-                    handleDone('plus', error, response);
-                });
-            });
-        });
-    });
+function publishFile(path, callback) {
+    fs.readFile(path, uploadFileHandler(callback));
 }
 
 publishFile('./support/web.js', (error) => {
