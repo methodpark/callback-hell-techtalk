@@ -16,19 +16,38 @@ function publishFile(path, callback) {
             }
 
             web.post('https://submit.example.com/', fileContent, (response) => {
+                let done = {
+                        twitter: false,
+                        facebook: false,
+                        plus: false
+                    },
+                    errors = [],
+                    handleDone = (what, error, response) => {
+                        done[what] = response || true;
+
+                        if (error) {
+                            errors.push(`${what}: ${error}`);
+                        }
+
+                        if (done.twitter && done.facebook && done.plus) {
+                            if (errors.length === 0) {
+                                errors = undefined;
+                            }
+                            callback(errors);
+                        }
+                    };
+
                 social.tweet('Just published this thing: ' + response.url, (error, response) => {
-                    // do something
+                    handleDone('twitter', error, response);
                 });
 
                 social.facebook('Just published this thing: ' + response.url, (error, response) => {
-                    // do something
+                    handleDone('facebook', error, response);
                 });
 
                 social.plus('Just published this thing: ' + response.url, (error, response) => {
-                    // do something
+                    handleDone('plus', error, response);
                 });
-
-                callback();
             });
         });
     });
