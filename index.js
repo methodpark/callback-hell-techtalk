@@ -7,6 +7,7 @@ let readFileAsync = path => {
     return new Promise((resolve, reject) => {
         fs.readFile(path, (error, fileContent) => {
             if (error) {
+                console.log('rejecting!');
                 reject(error);
                 return;
             }
@@ -44,18 +45,18 @@ let postFileAsync = (url, content) => {
 
 let makeSocialAsync = (what) => {
     return (url) => {
-        return new Promise((resolve, reject) => { 
+        return new Promise(resolve => {
             social[what](url, (error, response) => {
                 if (error) {
-                    reject(error);
+                    resolve({what, error});
                     return;
                 }
 
-                resolve(response);
+                resolve({what, response});
             });
         });
     };
-}
+};
 
 let socialAsync = {
     tweet: makeSocialAsync('tweet'),
@@ -63,26 +64,29 @@ let socialAsync = {
     plus: makeSocialAsync('plus')
 };
 
-let fileContent;
-let uploadUrl;
-readFileAsync('./support/web.js')
-    .then(content => {
-        fileContent = content;
-        return loginAsync('https://login.example.com/');
-    })
+
+Promise.all([
+    readFileAsync('./support/web.js'),
+    loginAsync('https://login.example.com/')
+])
     .then(result => {
+        let fileContent = result[0];
         return postFileAsync('https://submit.example.com/', fileContent);
     })
-    .then(() => {
-        return socialAsync.tweet(uploadUrl);
-    })
     .then(url => {
-        uploadUrl = url;
-        return socialAsync.facebook(uploadUrl);
+        return Promise.all([
+            socialAsync.tweet(url),
+            socialAsync.facebook(url),
+            socialAsync.plus(url)
+        ]);
     })
-    .then(() => {
-        return socialAsync.plus(uploadUrl);
+    .then(results => {
+        for (let result of results) {
+            if (result.error) {
+                console.warn(`Error while sharing on ${result.what}: ${result.error}`);
+            } else {
+                console.log(`Successfully shared on ${result.what}: ${result.response.url}`);
+            }
+        }
     })
-    .catch(error => {
-        console.warn(error);
-    });
+    .catch(console.warn.bind(console));
