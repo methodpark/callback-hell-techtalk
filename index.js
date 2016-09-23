@@ -44,18 +44,18 @@ let postFileAsync = (url, content) => {
 
 let makeSocialAsync = (what) => {
     return (url) => {
-        return new Promise((resolve, reject) => { 
+        return new Promise(resolve => {
             social[what](url, (error, response) => {
                 if (error) {
-                    reject(error);
+                    resolve({what, error});
                     return;
                 }
 
-                resolve(response);
+                resolve({what, response});
             });
         });
     };
-}
+};
 
 let socialAsync = {
     tweet: makeSocialAsync('tweet'),
@@ -64,24 +64,29 @@ let socialAsync = {
 };
 
 let fileContent;
-let uploadUrl;
 readFileAsync('./support/web.js')
     .then(content => {
         fileContent = content;
         return loginAsync('https://login.example.com/');
     })
-    .then(result => {
+    .then(() => {
         return postFileAsync('https://submit.example.com/', fileContent);
     })
-    .then(() => {
-        return socialAsync.tweet(uploadUrl);
-    })
     .then(url => {
-        uploadUrl = url;
-        return socialAsync.facebook(uploadUrl);
+        return Promise.all([
+            socialAsync.facebook(url),
+            socialAsync.tweet(url),
+            socialAsync.plus(url)
+        ]);
     })
-    .then(() => {
-        return socialAsync.plus(uploadUrl);
+    .then(results => {
+        for(let result of results) {
+            if (result.error) {
+                console.log(`Sharing on ${result.what} failed: ${result.error}`);
+            } else {
+                console.log(`Successfully shared on ${result.what}`);
+            }
+        }
     })
     .catch(error => {
         console.warn(error);
