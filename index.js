@@ -37,6 +37,10 @@ function publishFile(path, callback) {
                         }
                     };
 
+                if (response.status != 200) {
+                    callback('Could not post: ' + response.status);
+                }
+
                 social.tweet('Just published this thing: ' + response.url, (error, response) => {
                     handleDone('twitter', error, response);
                 });
