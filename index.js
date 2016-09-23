@@ -55,7 +55,7 @@ let makeSocialAsync = (what) => {
             });
         });
     };
-}
+};
 
 let socialAsync = {
     tweet: makeSocialAsync('tweet'),
@@ -64,17 +64,24 @@ let socialAsync = {
 };
 
 
+async function share(url) {
+    for (let social in socialAsync) {
+        try {
+            await socialAsync[social](url);
+            console.log(`Successfully posted in ${social}`);
+        } catch (exception) {
+            console.warn(`Could not share on ${social}: ${exception}`)
+        }
+    }
+}
+
 async function publishFile() {
     try {
         let fileContent = await readFileAsync('./support/web.js');
         await loginAsync('https://login.example.com/');
         let url = await postFileAsync('https://submit.example.com/', fileContent);
 
-        await Promise.all([
-            socialAsync.tweet(url),
-            socialAsync.facebook(url),
-            socialAsync.plus(url)
-        ]);
+        await share(url);
     } catch (exception) {
         console.warn(exception);
     }
